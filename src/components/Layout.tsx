@@ -2,13 +2,13 @@ import { ReactNode } from "react";
 import { PageKey } from "../types";
 
 const navItems: { key: PageKey; label: string; description: string }[] = [
-  { key: "dashboard", label: "대시보드", description: "CRM 핵심 지표 요약" },
-  { key: "participants", label: "참여자", description: "전체 참여자 프로필과 이력" },
-  { key: "events", label: "이벤트", description: "모임 운영 현황과 성과" },
-  { key: "referrals", label: "추천", description: "친구 초대와 승인 상태" },
-  { key: "rewards", label: "리워드/할인", description: "보상 지급과 사용 현황" },
-  { key: "imports", label: "CSV 업로드", description: "대량 업로드와 검증" },
-  { key: "settings", label: "설정", description: "정책과 관리자 설정" },
+  { key: "dashboard", label: "대시보드", description: "CRM 핵심 지표" },
+  { key: "participants", label: "참여자", description: "참여자 목록과 등록" },
+  { key: "events", label: "이벤트", description: "이벤트 목록과 등록" },
+  { key: "referrals", label: "추천", description: "추천 관계 추적" },
+  { key: "rewards", label: "리워드/할인", description: "보상 상태 확인" },
+  { key: "imports", label: "CSV 업로드", description: "CSV 검증 흐름" },
+  { key: "settings", label: "설정", description: "Supabase 연결 안내" },
 ];
 
 interface LayoutProps {
@@ -51,8 +51,8 @@ export function Layout({ page, onPageChange, title, subtitle, children }: Layout
             <p className="subtitle">{subtitle}</p>
           </div>
           <div className="topbar-actions">
-            <div className="pill">봄 시즌 운영 중</div>
-            <div className="pill secondary">관리자 6명 접속 중</div>
+            <div className="pill">Supabase 연동 모드</div>
+            <div className="pill secondary">실데이터 입력 가능</div>
           </div>
         </header>
         <main className="page-content">{children}</main>

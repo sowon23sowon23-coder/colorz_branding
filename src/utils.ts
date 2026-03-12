@@ -33,7 +33,9 @@ export const getEventSummaries = (data: CRMData): EventSummary[] =>
       const rows = data.participations.filter((entry) => entry.eventId === event.id);
       const attendees = rows.filter((entry) => entry.attendedStatus === "Attended");
       const noShows = rows.filter((entry) => entry.attendedStatus === "No-show");
-      const scores = attendees.map((entry) => entry.satisfactionScore).filter((score): score is number => typeof score === "number");
+      const scores = attendees
+        .map((entry) => entry.satisfactionScore)
+        .filter((score): score is number => typeof score === "number");
       const firstTimeParticipantCount = attendees.filter((entry) => {
         const participant = data.participants.find((item) => item.id === entry.participantId);
         return participant?.firstJoinedAt === event.date;
@@ -48,7 +50,9 @@ export const getEventSummaries = (data: CRMData): EventSummary[] =>
         returningParticipantCount: Math.max(attendees.length - firstTimeParticipantCount, 0),
         referralParticipantCount: data.referrals.filter((entry) => entry.eventId === event.id).length,
         discountAppliedCount: rows.filter((entry) => entry.discountApplied).length,
-        averageSatisfactionScore: scores.length ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)) : 0,
+        averageSatisfactionScore: scores.length
+          ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1))
+          : 0,
       };
     })
     .sort((a, b) => +new Date(b.date) - +new Date(a.date));
@@ -56,12 +60,20 @@ export const getEventSummaries = (data: CRMData): EventSummary[] =>
 export const getDashboardStats = (data: CRMData) => {
   const participantSummaries = getParticipantSummaries(data);
   const eventSummaries = getEventSummaries(data);
-  const currentMonth = "2026-03";
+  const currentMonth = new Date().toISOString().slice(0, 7);
   const newParticipantsThisMonth = data.participants.filter((entry) => entry.firstJoinedAt.startsWith(currentMonth)).length;
   const attendanceRate = eventSummaries.length
-    ? Math.round((eventSummaries.reduce((sum, event) => sum + event.actualAttendeeCount, 0) / Math.max(eventSummaries.reduce((sum, event) => sum + event.applicantCount, 0), 1)) * 100)
+    ? Math.round(
+        (eventSummaries.reduce((sum, event) => sum + event.actualAttendeeCount, 0) /
+          Math.max(eventSummaries.reduce((sum, event) => sum + event.applicantCount, 0), 1)) *
+          100,
+      )
     : 0;
-  const repeatParticipationRate = Math.round((participantSummaries.filter((entry) => entry.totalParticipationCount > 1).length / Math.max(participantSummaries.length, 1)) * 100);
+  const repeatParticipationRate = Math.round(
+    (participantSummaries.filter((entry) => entry.totalParticipationCount > 1).length /
+      Math.max(participantSummaries.length, 1)) *
+      100,
+  );
 
   return {
     totalParticipants: data.participants.length,
