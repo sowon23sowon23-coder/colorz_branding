@@ -37,13 +37,18 @@ export function SectionCard({
 
 export function StatusBadge({ status }: { status: string }) {
   const tone =
-    status.includes("Used") || status === "Attended"
+    status.includes("Used") || status.includes("사용") || status === "Attended" || status === "참석"
       ? "success"
-      : status.includes("Pending") || status === "Applied"
+      : status.includes("Pending") || status.includes("대기") || status === "Applied" || status === "신청"
         ? "warning"
-        : status.includes("Approved") || status.includes("Issued") || status.includes("Organic")
+        : status.includes("Approved") ||
+            status.includes("Issued") ||
+            status.includes("Organic") ||
+            status.includes("승인") ||
+            status.includes("지급") ||
+            status.includes("일반")
           ? "info"
-          : status.includes("No-show") || status.includes("Expired")
+          : status.includes("No-show") || status.includes("Expired") || status.includes("노쇼") || status.includes("만료")
             ? "danger"
             : "neutral";
 
@@ -80,7 +85,7 @@ export function Drawer({
         <div className="drawer-head">
           <h3>{title}</h3>
           <button className="ghost-button" onClick={onClose}>
-            Close
+            닫기
           </button>
         </div>
         <div className="drawer-body">{children}</div>

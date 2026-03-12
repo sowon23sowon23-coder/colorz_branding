@@ -87,14 +87,14 @@ export function DataTable<T>({ columns, rows, rowKey, onRowClick, pageSize = 6 }
       </div>
       <div className="table-footer">
         <span>
-          Page {clampedPage} of {pageCount}
+          {clampedPage} / {pageCount} 페이지
         </span>
         <div className="pagination">
           <button className="ghost-button" onClick={() => setPage(Math.max(clampedPage - 1, 1))}>
-            Previous
+            이전
           </button>
           <button className="ghost-button" onClick={() => setPage(Math.min(clampedPage + 1, pageCount))}>
-            Next
+            다음
           </button>
         </div>
       </div>

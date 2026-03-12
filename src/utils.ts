@@ -1,7 +1,7 @@
 import { CRMData, Event, EventSummary, ImportType, ParticipantSummary, RewardStatus } from "./types";
 
 export const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
+  new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
 
 export const getParticipantSummaries = (data: CRMData): ParticipantSummary[] =>
   data.participants.map((participant) => {
@@ -137,23 +137,23 @@ export const parseCsv = (text: string): string[][] => {
 export const inferColumnRole = (header: string, importType: ImportType) => {
   const key = header.toLowerCase();
   const common = [
-    { match: ["name", "participant_name", "성함"], role: "name" },
+    { match: ["name", "participant_name", "성함", "이름"], role: "name" },
     { match: ["phone", "연락처", "전화번호"], role: "phone" },
     { match: ["school", "대학교", "학교"], role: "school" },
     { match: ["grade", "year", "학년"], role: "grade" },
-    { match: ["event", "event_name", "모임명"], role: "eventName" },
-    { match: ["referral", "referrer", "추천인"], role: "referrerCode" },
+    { match: ["event", "event_name", "모임명", "이벤트명"], role: "eventName" },
+    { match: ["referral", "referrer", "추천인", "추천코드"], role: "referrerCode" },
   ];
 
   const extra =
     importType === "participations"
       ? [
-          { match: ["attendance", "attended", "출석"], role: "attendanceStatus" },
+          { match: ["attendance", "attended", "출석", "참석"], role: "attendanceStatus" },
           { match: ["satisfaction", "score", "만족도"], role: "satisfactionScore" },
         ]
       : importType === "referrals"
         ? [
-            { match: ["reward", "혜택"], role: "rewardType" },
+            { match: ["reward", "혜택", "보상"], role: "rewardType" },
             { match: ["status", "상태"], role: "referralStatus" },
           ]
         : [];
