@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Upload } from "lucide-react";
+import { Edit3, Plus, Upload } from "lucide-react";
 
 import { useAppData } from "@/components/app-data-provider";
 import { DataTable } from "@/components/data-table";
@@ -9,16 +9,36 @@ import { DetailDrawer } from "@/components/detail-drawer";
 import { EmptyState } from "@/components/empty-state";
 import { FilterBar } from "@/components/filter-bar";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Button, Card, CardContent, Input } from "@/components/ui";
+import { Badge, Button, Card, CardContent, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, Textarea } from "@/components/ui";
 import { getParticipantDetail, listParticipants } from "@/lib/repository";
 import { formatDate } from "@/lib/utils";
 import type { Participant } from "@/types";
 
+const today = new Date().toISOString().slice(0, 10);
+
+const emptyParticipant: Participant = {
+  id: "new-participant",
+  name: "",
+  email: "",
+  phone: "",
+  firstJoinDate: today,
+  lastJoinDate: today,
+  totalParticipations: 1,
+  joinedEventIds: [],
+  referrerName: "",
+  invitedFriendsCount: 0,
+  tags: ["first-time"],
+  notes: "",
+};
+
 export function ParticipantsPage() {
-  const { db } = useAppData();
+  const { db, saveParticipantItem } = useAppData();
   const [filters, setFilters] = useState<{ query: string; segment: "all" | "first-time" | "repeat" | "has-referrer" | "invited-friends" | "inactive" }>({ query: "", segment: "all" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [csvPreview, setCsvPreview] = useState<string[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [form, setForm] = useState<Participant>(emptyParticipant);
 
   const participants = useMemo(() => listParticipants(db, filters), [db, filters]);
   const detail = selectedId ? getParticipantDetail(db, selectedId) : undefined;
@@ -33,29 +53,53 @@ export function ParticipantsPage() {
     reader.readAsText(file);
   };
 
+  const openCreate = () => {
+    setEditingParticipant(null);
+    setForm(emptyParticipant);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (participant: Participant) => {
+    setEditingParticipant(participant);
+    setForm(participant);
+    setDialogOpen(true);
+  };
+
+  const saveParticipant = async () => {
+    const payload: Participant = {
+      ...form,
+      tags: form.tags.map((tag) => tag.trim()).filter(Boolean),
+    };
+    await saveParticipantItem(payload);
+    setDialogOpen(false);
+  };
+
   return (
     <div>
       <PageHeader
         eyebrow="CRM"
-        title="참가자 CRM"
-        description="신규, 재참여, 추천 유입, 휴면 참가자를 빠르게 필터링하고 개인별 이력과 메모를 확인합니다."
+        title="Participant CRM"
+        description="Manage participant records and save directly to Supabase from this screen."
         actions={
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-            <Upload className="h-4 w-4" />CSV 업로드
-            <input type="file" accept=".csv" className="hidden" onChange={(event) => handleCsv(event.target.files?.[0])} />
-          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Add participant</Button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
+              <Upload className="h-4 w-4" />CSV preview
+              <input type="file" accept=".csv" className="hidden" onChange={(event) => handleCsv(event.target.files?.[0])} />
+            </label>
+          </div>
         }
       />
 
       <FilterBar>
-        <Input placeholder="이름, 이메일, 태그 검색" value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} className="max-w-sm" />
+        <Input placeholder="Search name, email, phone, tags" value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} className="max-w-sm" />
         <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm" value={filters.segment} onChange={(event) => setFilters((current) => ({ ...current, segment: event.target.value as typeof filters.segment }))}>
-          <option value="all">전체</option>
-          <option value="first-time">첫 참가</option>
-          <option value="repeat">재참여</option>
-          <option value="has-referrer">추천인 있음</option>
-          <option value="invited-friends">친구 초대 경험</option>
-          <option value="inactive">최근 30일 비활성</option>
+          <option value="all">All segments</option>
+          <option value="first-time">First-time</option>
+          <option value="repeat">Repeat</option>
+          <option value="has-referrer">Has referrer</option>
+          <option value="invited-friends">Invited friends</option>
+          <option value="inactive">Inactive</option>
         </select>
       </FilterBar>
 
@@ -63,19 +107,19 @@ export function ParticipantsPage() {
         <Card>
           <CardContent className="p-6">
             {participants.length === 0 ? (
-              <EmptyState title="조건에 맞는 참가자가 없습니다" description="검색어나 세그먼트 필터를 조정해 주세요." />
+              <EmptyState title="No matching participants" description="Adjust filters or add a new participant." />
             ) : (
               <DataTable
-                headers={["참가자", "참여 이력", "추천/초대", "태그", "메모"]}
+                headers={["Participant", "Participation", "Referral", "Tags", "Actions"]}
                 rows={participants.map((participant) => [
                   <button key={`${participant.id}-name`} className="text-left" onClick={() => setSelectedId(participant.id)}>
                     <div className="font-medium text-slate-900">{participant.name}</div>
-                    <div className="text-xs text-slate-500">{participant.email}</div>
+                    <div className="text-xs text-slate-500">{participant.email || participant.phone}</div>
                   </button>,
-                  <div key={`${participant.id}-history`} className="text-sm text-slate-600">첫 참여 {formatDate(participant.firstJoinDate)}<br />최근 참여 {formatDate(participant.lastJoinDate)}<br />총 {participant.totalParticipations}회</div>,
-                  <div key={`${participant.id}-ref`} className="text-sm text-slate-600">추천인 {participant.referrerName || "-"}<br />초대한 친구 {participant.invitedFriendsCount}명</div>,
+                  <div key={`${participant.id}-history`} className="text-sm text-slate-600">First {formatDate(participant.firstJoinDate)}<br />Latest {formatDate(participant.lastJoinDate)}<br />Total {participant.totalParticipations}</div>,
+                  <div key={`${participant.id}-ref`} className="text-sm text-slate-600">Referrer {participant.referrerName || "-"}<br />Invited friends {participant.invitedFriendsCount}</div>,
                   <div key={`${participant.id}-tags`} className="flex flex-wrap gap-2">{participant.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</div>,
-                  participant.notes,
+                  <Button key={`${participant.id}-edit`} variant="ghost" size="icon" onClick={() => openEdit(participant)}><Edit3 className="h-4 w-4" /></Button>,
                 ])}
               />
             )}
@@ -85,50 +129,74 @@ export function ParticipantsPage() {
         <div className="space-y-6">
           <Card>
             <CardContent className="p-6">
-              <div className="text-lg font-semibold text-slate-900">운영 세그먼트 가이드</div>
+              <div className="text-lg font-semibold text-slate-900">Direct input is enabled</div>
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <div><span className="font-medium text-slate-900">VIP</span> 후기/추천 확률이 높아 사전 초대 리스트에 포함</div>
-                <div><span className="font-medium text-slate-900">Repeat</span> 다음 행사 유형 실험의 안정적인 베이스로 활용</div>
-                <div><span className="font-medium text-slate-900">Inactive</span> 최근 30일 미참여자는 콘텐츠형 리마인드 우선</div>
+                <div>Use <span className="font-medium text-slate-900">Add participant</span> to save new rows into Supabase.</div>
+                <div>Use the edit button in the table to update existing participant records.</div>
+                <div>CSV is still preview-only in this version. Manual entry is now connected.</div>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-6">
-              <div className="text-lg font-semibold text-slate-900">CSV 미리보기</div>
+              <div className="text-lg font-semibold text-slate-900">CSV preview</div>
               <div className="mt-3 space-y-2 text-sm text-slate-500">
-                {csvPreview.length === 0 ? <div>업로드된 CSV가 없습니다.</div> : csvPreview.map((line, index) => <div key={index} className="rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs">{line}</div>)}
+                {csvPreview.length === 0 ? <div>No CSV uploaded.</div> : csvPreview.map((line, index) => <div key={index} className="rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs">{line}</div>)}
               </div>
-              <div className="mt-4 text-xs text-slate-500">현재는 프런트엔드 미리보기만 동작하며 실제 저장은 하지 않습니다.</div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <DetailDrawer open={Boolean(detail)} onClose={() => setSelectedId(null)} title={detail?.participant.name || "참가자 상세"} description={detail ? `${detail.participant.email} · ${detail.participant.phone}` : undefined}>
+      <DetailDrawer open={Boolean(detail)} onClose={() => setSelectedId(null)} title={detail?.participant.name || "Participant detail"} description={detail ? `${detail.participant.email || "No email"} / ${detail.participant.phone}` : undefined}>
         {detail ? (
           <div className="space-y-6">
-            <Section title="프로필 정보">
+            <Section title="Profile">
               <div className="space-y-2 text-sm text-slate-600">
-                <div>첫 참여일: {formatDate(detail.participant.firstJoinDate)}</div>
-                <div>최근 참여일: {formatDate(detail.participant.lastJoinDate)}</div>
-                <div>총 참여: {detail.participant.totalParticipations}회</div>
-                <div>추천인: {detail.participant.referrerName || "없음"}</div>
+                <div>First joined: {formatDate(detail.participant.firstJoinDate)}</div>
+                <div>Latest joined: {formatDate(detail.participant.lastJoinDate)}</div>
+                <div>Total participations: {detail.participant.totalParticipations}</div>
+                <div>Referrer: {detail.participant.referrerName || "None"}</div>
               </div>
             </Section>
-            <Section title="참여 이벤트 이력">
-              <div className="space-y-3">{detail.joinedEvents.map((event) => <div key={event.id} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-600"><div className="font-medium text-slate-900">{event.title}</div><div className="mt-1">{formatDate(event.date)} · {event.location}</div></div>)}</div>
+            <Section title="Joined events">
+              <div className="space-y-3">{detail.joinedEvents.map((event) => <div key={event.id} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-600"><div className="font-medium text-slate-900">{event.title}</div><div className="mt-1">{formatDate(event.date)} / {event.location}</div></div>)}</div>
             </Section>
-            <Section title="태그와 메모">
+            <Section title="Tags and notes">
               <div className="flex flex-wrap gap-2">{detail.participant.tags.map((tag) => <Badge key={tag}>{tag}</Badge>)}</div>
-              <div className="mt-3 text-sm leading-6 text-slate-600">{detail.participant.notes}</div>
+              <div className="mt-3 text-sm leading-6 text-slate-600">{detail.participant.notes || "No notes yet."}</div>
             </Section>
-            <Section title="설문/리퍼럴 힌트">
-              <div className="space-y-3">{detail.surveys.map((survey) => <div key={survey.id} className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">만족도 {survey.satisfactionScore}/5 · {survey.comment}</div>)}</div>
+            <Section title="Survey comments">
+              <div className="space-y-3">{detail.surveys.map((survey) => <div key={survey.id} className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Satisfaction {survey.satisfactionScore}/5 / {survey.comment}</div>)}</div>
             </Section>
           </div>
         ) : null}
       </DetailDrawer>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingParticipant ? "Edit participant" : "Add participant"}</DialogTitle>
+            <DialogDescription>Save participant information directly into Supabase.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input placeholder="Name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+            <Input placeholder="Email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+            <Input placeholder="Phone" value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+            <Input placeholder="Referrer name" value={form.referrerName} onChange={(event) => setForm((current) => ({ ...current, referrerName: event.target.value }))} />
+            <Input type="date" value={form.firstJoinDate} onChange={(event) => setForm((current) => ({ ...current, firstJoinDate: event.target.value }))} />
+            <Input type="date" value={form.lastJoinDate} onChange={(event) => setForm((current) => ({ ...current, lastJoinDate: event.target.value }))} />
+            <Input type="number" placeholder="Total participations" value={form.totalParticipations} onChange={(event) => setForm((current) => ({ ...current, totalParticipations: Number(event.target.value) }))} />
+            <Input type="number" placeholder="Invited friends" value={form.invitedFriendsCount} onChange={(event) => setForm((current) => ({ ...current, invitedFriendsCount: Number(event.target.value) }))} />
+            <Input className="md:col-span-2" placeholder="Tags, comma separated" value={form.tags.join(", ")} onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value.split(",") }))} />
+          </div>
+          <Textarea className="mt-3" placeholder="Notes" value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => void saveParticipant()}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -141,4 +209,3 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </section>
   );
 }
-

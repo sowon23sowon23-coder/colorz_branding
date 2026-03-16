@@ -13,6 +13,13 @@ create table if not exists participants (
   created_at timestamptz not null default now()
 );
 
+alter table participants add column if not exists email text;
+alter table participants add column if not exists last_joined_at date;
+alter table participants add column if not exists total_participations integer not null default 0;
+alter table participants add column if not exists referrer_name text;
+alter table participants add column if not exists invited_friends_count integer not null default 0;
+alter table participants add column if not exists tags text[] not null default '{}';
+
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -24,6 +31,17 @@ create table if not exists events (
   description text,
   created_at timestamptz not null default now()
 );
+
+alter table events add column if not exists event_type text check (event_type in ('networking', 'food', 'career', 'workshop', 'social'));
+alter table events add column if not exists status text check (status in ('planning', 'preparing', 'completed', 'analyzed'));
+alter table events add column if not exists target_participants integer not null default 0;
+alter table events add column if not exists actual_participants integer not null default 0;
+alter table events add column if not exists total_cost integer not null default 0;
+alter table events add column if not exists total_revenue integer not null default 0;
+alter table events add column if not exists owner text;
+alter table events add column if not exists notes text;
+alter table events add column if not exists reflection text;
+alter table events add column if not exists food_items text[] not null default '{}';
 
 create table if not exists participations (
   id uuid primary key default gen_random_uuid(),
@@ -80,6 +98,13 @@ alter table participations enable row level security;
 alter table referrals enable row level security;
 alter table rewards enable row level security;
 alter table import_history enable row level security;
+
+drop policy if exists "Allow all operations for anon and authenticated users on participants" on participants;
+drop policy if exists "Allow all operations for anon and authenticated users on events" on events;
+drop policy if exists "Allow all operations for anon and authenticated users on participations" on participations;
+drop policy if exists "Allow all operations for anon and authenticated users on referrals" on referrals;
+drop policy if exists "Allow all operations for anon and authenticated users on rewards" on rewards;
+drop policy if exists "Allow all operations for anon and authenticated users on import_history" on import_history;
 
 create policy "Allow all operations for anon and authenticated users on participants" on participants
   for all to anon, authenticated using (true) with check (true);
